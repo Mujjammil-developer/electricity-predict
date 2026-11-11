@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Reports &amp; Data Exports | Electricity Consumption Prediction System{% endblock %}
+{% block page_title %}Project Reports &amp; Data Exports{% endblock %}
+{% block page_subtitle %}Generate formal evaluation PDF documents and export structured CSV datasets for research &amp; viva presentations{% endblock %}
+
+{% block content %}
+<!-- 3 Primary Action Download Cards -->
+<div class="row g-4 mb-4">
+  <!-- Card 1: PDF Report -->
+  <div class="col-12 col-md-4">
+    <div class="dashboard-card text-center p-4 h-100 d-flex flex-column justify-content-between border-top border-4 border-danger">
+      <div>
+        <div class="sidebar-logo-icon mx-auto mb-3 bg-danger-subtle text-danger" style="width: 58px; height: 58px; font-size: 1.8rem; border-color: rgba(239, 68, 68, 0.4);">
+          <i class="bi bi-file-earmark-pdf-fill"></i>
+        </div>
+        <h4 class="fw-bold fs-5 text-dark mb-2">Formal Project PDF Report</h4>
+        <p class="text-muted small mb-3">
+          Generates a comprehensive academic evaluation report including executive KPIs, Scikit-Learn Random Forest metrics, 24-hour predictive forecast table, and load shifting recommendations.
+        </p>
+      </div>
+      <div>
+        <a href="{{ url_for('download_report_pdf') }}" class="btn btn-navy w-100">
+          <i class="bi bi-download me-1"></i> Generate &amp; Download PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: 24h Predictions CSV -->
+  <div class="col-12 col-md-4">
+    <div class="dashboard-card text-center p-4 h-100 d-flex flex-column justify-content-between border-top border-4 border-success">
+      <div>
+        <div class="sidebar-logo-icon mx-auto mb-3 bg-success-subtle text-success" style="width: 58px; height: 58px; font-size: 1.8rem; border-color: rgba(16, 185, 129, 0.4);">
+          <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+        </div>
+        <h4 class="fw-bold fs-5 text-dark mb-2">24-Hour Forecast (CSV)</h4>
+        <p class="text-muted small mb-3">
+          Exports hourly recursive predictions for the next 24-hour cycle including predicted load (kWh), operating peak status, and hourly cost estimates in Indian Rupees (₹).
+        </p>
+      </div>
+      <div>
+        <a href="{{ url_for('download_predictions_csv') }}" class="btn btn-electric w-100">
+          <i class="bi bi-download me-1"></i> Download Forecast CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Analyzed Dataset CSV -->
+  <div class="col-12 col-md-4">
+    <div class="dashboard-card text-center p-4 h-100 d-flex flex-column justify-content-between border-top border-4 border-primary">
+      <div>
+        <div class="sidebar-logo-icon mx-auto mb-3 bg-primary-subtle text-primary" style="width: 58px; height: 58px; font-size: 1.8rem; border-color: rgba(2, 132, 199, 0.4);">
+          <i class="bi bi-database-down"></i>
+        </div>
+        <h4 class="fw-bold fs-5 text-dark mb-2">Analyzed Dataset (CSV)</h4>
+        <p class="text-muted small mb-3">
+          Exports the preprocessed and feature-engineered historical dataset with verified timestamps, hourly indices, day names, and cleaned energy consumption figures.
+        </p>
+      </div>
+      <div>
+        <a href="{{ url_for('download_analyzed_csv') }}" class="btn btn-outline-navy w-100">
+          <i class="bi bi-download me-1"></i> Download Cleaned CSV
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Embedded Report Summary Review Section -->
+<div class="row g-4 mb-4">
+  <!-- Consumption Summary -->
+  <div class="col-12 col-lg-6">
+    <div class="dashboard-card h-100">
+      <div class="card-header-flex">
+        <h3 class="card-title">
+          <i class="bi bi-card-checklist text-primary"></i> Historical Consumption Summary
+        </h3>
+        <span class="badge bg-light text-muted border">{{ overview.total_days }} Days Total</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table custom-table table-sm">
+          <tbody>
+            <tr>
+              <td class="text-muted">Total Recorded Consumption</td>
+              <td class="fw-bold text-dark">{{ "{:,.2f}".format(overview.total_consumption_kwh) }} kWh</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Average Daily Demand</td>
+              <td class="fw-bold text-dark">{{ overview.avg_daily_consumption_kwh }} kWh/day</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Peak Operating Hour</td>
+              <td class="fw-bold text-danger">{{ overview.peak_hour_formatted }} (Avg: {{ overview.peak_hour_avg_kwh }} kWh)</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Lowest Trough Hour</td>
+              <td class="fw-bold text-success">{{ overview.trough_hour_formatted }} (Avg: {{ overview.trough_hour_avg_kwh }} kWh)</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Single Maximum Surge</td>
+              <td class="fw-bold text-danger">{{ overview.highest_consumption_kwh }} kWh ({{ overview.highest_consumption_timestamp }})</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Active Model Training Split</td>
+              <td class="fw-bold text-dark">{{ model_metrics.train_samples }} Train / {{ model_metrics.test_samples }} Test samples</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Performance Results -->
+  <div class="col-12 col-lg-6">
+    <div class="dashboard-card h-100">
+      <div class="card-header-flex">
+        <h3 class="card-title">
+          <i class="bi bi-cpu-fill text-success"></i> Model Performance Evaluation
+        </h3>
+        <span class="badge bg-success-subtle text-success fw-bold">Random Forest Regressor</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table custom-table table-sm">
+          <thead>
+            <tr>
+              <th>Evaluation Metric</th>
+              <th>Score</th>
+              <th>Interpretation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-bold">R² Score</td>
+              <td><span class="badge bg-success-subtle text-success fw-bold fs-6">{{ model_metrics.r2 }}</span></td>
+              <td class="small text-muted">95%+ of variance explained by model features.</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">MAE</td>
+              <td class="fw-bold text-primary">{{ model_metrics.mae }} kWh</td>
+              <td class="small text-muted">Mean absolute error across test intervals.</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">RMSE</td>
+              <td class="fw-bold text-danger">{{ model_metrics.rmse }} kWh</td>
+              <td class="small text-muted">Outlier error sensitivity index.</td>
+            </tr>
+            <tr>
+              <td class="fw-bold">MAPE</td>
+              <td class="fw-bold text-warning">{{ model_metrics.mape }}%</td>
+              <td class="small text-muted">Mean absolute percentage error rate.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Smart Recommendations Snapshot in Report -->
+<div class="dashboard-card">
+  <div class="card-header-flex">
+    <h3 class="card-title">
+      <i class="bi bi-lightbulb-fill text-warning"></i> Active Recommendations Snapshot
+    </h3>
+    <a href="{{ url_for('recommendations_page') }}" class="btn btn-sm btn-outline-navy">View Full Advisory</a>
+  </div>
+
+  <div class="row g-3">
+    {% for rec in recommendations.recommendations %}
+    <div class="col-12 col-md-6">
+      <div class="p-3 bg-light rounded border h-100">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="badge {{ rec.badge_class }}">{{ rec.badge }}</span>
+          <span class="small text-muted">{{ rec.category }}</span>
+        </div>
+        <h6 class="fw-bold text-dark mt-2 mb-1">{{ rec.title }}</h6>
+        <p class="small text-muted mb-2">{{ rec.description }}</p>
+        <div class="small fw-semibold text-success"><i class="bi bi-check-circle me-1"></i> {{ rec.potential_impact }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

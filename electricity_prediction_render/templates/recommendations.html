@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Energy Recommendations | Electricity Consumption Prediction System{% endblock %}
+{% block page_title %}Smart Energy Recommendations & Optimization{% endblock %}
+{% block page_subtitle %}AI-generated load shifting strategies, anomaly diagnosis, and energy cost mitigation{% endblock %}
+
+{% block content %}
+<!-- Top Level Key Recommendation Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card p-3 border-start border-danger border-4">
+      <div class="text-muted small fw-bold">CRITICAL PEAK WINDOW</div>
+      <div class="fs-5 fw-bold text-danger mt-1">{{ recommendations.summary.peak_hours }}</div>
+      <div class="small text-muted">Avg Load: {{ recommendations.summary.avg_peak_kwh }} kWh/hr</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card p-3 border-start border-success border-4">
+      <div class="text-muted small fw-bold">LOWEST OFF-PEAK WINDOW</div>
+      <div class="fs-5 fw-bold text-success mt-1">{{ recommendations.summary.offpeak_hours }}</div>
+      <div class="small text-muted">Avg Load: {{ recommendations.summary.avg_offpeak_kwh }} kWh/hr</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card p-3 border-start border-primary border-4">
+      <div class="text-muted small fw-bold">PEAK LOAD DISPARITY</div>
+      <div class="fs-5 fw-bold text-primary mt-1">+{{ recommendations.summary.peak_excess_pct }}%</div>
+      <div class="small text-muted">Peak surge over base trough</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card p-3 border-start border-warning border-4">
+      <div class="text-muted small fw-bold">LOAD SHIFT SAVINGS</div>
+      <div class="fs-5 fw-bold text-dark mt-1">₹{{ "{:,.2f}".format(recommendations.summary.potential_monthly_savings_inr) }}</div>
+      <div class="small text-muted">Est. monthly bill reduction</div>
+    </div>
+  </div>
+</div>
+
+<!-- Dynamic Actionable Recommendation Cards -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-lightbulb-fill text-warning"></i> Mathematically Derived Recommendations
+      </h3>
+      <p class="card-subtitle">Synthesized dynamically from statistical anomaly tracking and machine learning 24-hour predictions</p>
+    </div>
+    <span class="badge bg-success text-white">Live Data Driven</span>
+  </div>
+
+  <div class="row g-3">
+    {% for rec in recommendations.recommendations %}
+    <div class="col-12">
+      <div class="recommendation-card {{ rec.badge_class.replace('badge-', '') }}">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi {{ rec.icon }} fs-5 text-dark"></i>
+            <h5 class="fw-bold mb-0 text-dark">{{ rec.title }}</h5>
+          </div>
+          <span class="badge {{ rec.badge_class }}">{{ rec.badge }}</span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          {{ rec.description }}
+        </p>
+
+        <div class="row g-2 pt-2 border-top">
+          <div class="col-12 col-md-7">
+            <div class="small">
+              <strong class="text-dark"><i class="bi bi-arrow-right-circle text-primary me-1"></i> Recommended Action:</strong>
+              <span class="text-muted">{{ rec.action }}</span>
+            </div>
+          </div>
+          <div class="col-12 col-md-5">
+            <div class="small">
+              <strong class="text-dark"><i class="bi bi-trophy text-success me-1"></i> Quantified Impact:</strong>
+              <span class="text-success fw-semibold">{{ rec.potential_impact }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Actionable Appliance Shifting Matrix Table -->
+<div class="dashboard-card">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-hdd-stack-fill text-primary"></i> Heavy Appliance Load-Shifting Matrix
+      </h3>
+      <p class="card-subtitle">Recommended operational windows to prevent peak demand charges and grid stress</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table custom-table table-hover">
+      <thead>
+        <tr>
+          <th>Appliance / Machinery</th>
+          <th>Typical Draw</th>
+          <th>Standard Peak Usage</th>
+          <th>Optimized Operating Window</th>
+          <th>Benefit &amp; Grid Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fw-bold"><i class="bi bi-ev-front me-2 text-primary"></i>Electric Vehicle (EV) Charging</td>
+          <td>3.3 &ndash; 7.2 kW</td>
+          <td><span class="badge badge-peak">7:00 PM &ndash; 10:00 PM</span></td>
+          <td><span class="badge badge-offpeak">11:00 PM &ndash; 6:00 AM</span></td>
+          <td class="small text-muted">Cuts peak grid burden; leverages lowest off-peak tariff slab.</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="bi bi-snow me-2 text-info"></i>HVAC / Air Conditioning</td>
+          <td>1.5 &ndash; 3.0 kW</td>
+          <td><span class="badge badge-peak">2:00 PM &ndash; 9:00 PM</span></td>
+          <td><span class="badge badge-normal">Pre-cool at 1:00 PM; set 24°C</span></td>
+          <td class="small text-muted">Each 1°C increase in thermostat saves approx 6% electricity consumption.</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="bi bi-droplet-half me-2 text-primary"></i>Water Pumps &amp; Storage Tanks</td>
+          <td>1.5 &ndash; 2.2 kW</td>
+          <td><span class="badge badge-peak">7:00 AM &ndash; 9:00 AM</span></td>
+          <td><span class="badge badge-offpeak">4:00 AM &ndash; 6:00 AM</span></td>
+          <td class="small text-muted">Avoids stacking pump surge on top of morning peak breakfast rush.</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="bi bi-water me-2 text-success"></i>Washing Machine &amp; Dryer</td>
+          <td>1.2 &ndash; 2.0 kW</td>
+          <td><span class="badge badge-peak">8:00 AM &ndash; 11:00 AM</span></td>
+          <td><span class="badge badge-offpeak">1:00 PM &ndash; 4:00 PM (Solar Noon)</span></td>
+          <td class="small text-muted">Runs during peak rooftop solar generation hours.</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="bi bi-fire me-2 text-danger"></i>Electric Water Geyser</td>
+          <td>2.0 &ndash; 3.0 kW</td>
+          <td><span class="badge badge-peak">7:00 AM &ndash; 9:30 AM</span></td>
+          <td><span class="badge badge-offpeak">5:30 AM &ndash; 6:30 AM</span></td>
+          <td class="small text-muted">Preheat insulated tank before main morning household rush.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

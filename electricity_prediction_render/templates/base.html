@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Electricity Consumption Prediction System{% endblock %}</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Custom Modern Dark Navy & Electric Green Theme -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
+        <div class="sidebar-logo-icon">
+          <i class="bi bi-lightning-charge-fill"></i>
+        </div>
+        <div class="sidebar-brand-text">
+          <h1>EcoPredict</h1>
+          <span>Smart Energy AI</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-menu">
+        <div class="sidebar-heading">Core Navigation</div>
+        <li class="sidebar-item">
+          <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if active_page == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="{{ url_for('upload_page') }}" class="sidebar-link {% if active_page == 'upload' %}active{% endif %}">
+            <i class="bi bi-cloud-arrow-up-fill"></i>
+            <span>Dataset Upload</span>
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="{{ url_for('analysis_page') }}" class="sidebar-link {% if active_page == 'analysis' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line-fill"></i>
+            <span>Data Analysis</span>
+          </a>
+        </li>
+
+        <div class="sidebar-heading">Intelligence & Modeling</div>
+        <li class="sidebar-item">
+          <a href="{{ url_for('prediction_page') }}" class="sidebar-link {% if active_page == 'prediction' %}active{% endif %}">
+            <i class="bi bi-cpu-fill"></i>
+            <span>ML Prediction (RF)</span>
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="{{ url_for('recommendations_page') }}" class="sidebar-link {% if active_page == 'recommendations' %}active{% endif %}">
+            <i class="bi bi-lightbulb-fill"></i>
+            <span>Smart Recommendations</span>
+          </a>
+        </li>
+
+        <div class="sidebar-heading">Economics & Exports</div>
+        <li class="sidebar-item">
+          <a href="{{ url_for('bill_calculator_page') }}" class="sidebar-link {% if active_page == 'bill' %}active{% endif %}">
+            <i class="bi bi-receipt"></i>
+            <span>Bill Calculator (₹)</span>
+          </a>
+        </li>
+        <li class="sidebar-item">
+          <a href="{{ url_for('reports_page') }}" class="sidebar-link {% if active_page == 'reports' %}active{% endif %}">
+            <i class="bi bi-file-earmark-pdf-fill"></i>
+            <span>Reports & Exports</span>
+          </a>
+        </li>
+      </ul>
+
+      <!-- Active Dataset Indicator in Footer -->
+      <div class="sidebar-footer">
+        <div class="dataset-status-pill">
+          <div class="status-dot {% if session.get('is_simulated', True) %}simulated{% endif %}"></div>
+          <div class="text-truncate">
+            <div class="fw-bold text-white" style="font-size: 0.75rem;">
+              {% if session.get('is_simulated', True) %}Simulated Dataset{% else %}Custom Uploaded Data{% endif %}
+            </div>
+            <div class="text-muted" style="font-size: 0.68rem;">
+              {{ session.get('total_rows', '8,784') }} hourly records active
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <!-- Top Sticky Navbar -->
+      <header class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+          <button class="mobile-toggle-btn" aria-label="Toggle Navigation">
+            <i class="bi bi-list"></i>
+          </button>
+          <div class="page-title">
+            <h2>{% block page_title %}Dashboard Overview{% endblock %}</h2>
+            <p>{% block page_subtitle %}Electricity Consumption Prediction & Smart Energy Analysis System{% endblock %}</p>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <a href="{{ url_for('upload_page') }}" class="btn btn-outline-navy btn-sm d-none d-md-inline-flex">
+            <i class="bi bi-upload"></i> Upload CSV
+          </a>
+          <a href="{{ url_for('download_report_pdf') }}" class="btn btn-electric btn-sm">
+            <i class="bi bi-download"></i> PDF Report
+          </a>
+        </div>
+      </header>
+
+      <!-- Content Container -->
+      <main class="content-body">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm mb-4" role="alert">
+                <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'info' %}bi-info-circle-fill{% else %}bi-exclamation-triangle-fill{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Page Specific Content -->
+        {% block content %}{% endblock %}
+      </main>
+
+      <!-- Page Footer -->
+      <footer class="footer">
+        <div>
+          <strong>Electricity Consumption Prediction System</strong> &bull; B.Tech Artificial Intelligence and Data Science Project
+        </div>
+        <div>
+          Powered by Flask, Random Forest Regressor &amp; Chart.js
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <!-- Application Scripts -->
+  <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  
+  {% block scripts %}{% endblock %}
+</body>
+</html>

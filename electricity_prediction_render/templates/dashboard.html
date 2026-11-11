@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Electricity Consumption Prediction System{% endblock %}
+{% block page_title %}Energy Analytics Dashboard{% endblock %}
+{% block page_subtitle %}Real-time monitoring, machine learning forecasts, and peak demand profiling{% endblock %}
+
+{% block content %}
+<!-- Dataset Mode Alert Banner -->
+{% if is_simulated %}
+<div class="alert alert-info d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 shadow-sm border-0 bg-info-subtle text-info-emphasis">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
+    <div>
+      <strong>Active Dataset: Simulated Smart Meter Dataset</strong> &mdash; 
+      Displaying 8,784 hourly recordings (1 full calendar year) simulating real-world seasonal, diurnal, and weekend load variations.
+    </div>
+  </div>
+  <a href="{{ url_for('upload_page') }}" class="btn btn-sm btn-primary">
+    <i class="bi bi-cloud-upload me-1"></i> Upload Custom CSV
+  </a>
+</div>
+{% else %}
+<div class="alert alert-success d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 shadow-sm border-0 bg-success-subtle text-success-emphasis">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+    <div>
+      <strong>Active Dataset: Custom Uploaded CSV</strong> &mdash; 
+      Displaying {{ overview.total_records }} cleaned hourly recordings across {{ overview.total_days }} days.
+    </div>
+  </div>
+  <a href="{{ url_for('reset_dataset') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset to Sample Data
+  </a>
+</div>
+{% endif %}
+
+<!-- 6 Primary Statistics Cards -->
+<div class="row g-3 mb-4">
+  <!-- 1. Total Electricity Consumption -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card green-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Total Consumed</div>
+          <div class="kpi-value">{{ "{:,.0f}".format(overview.total_consumption_kwh) }}<span class="kpi-unit">kWh</span></div>
+          <div class="kpi-badge text-muted">Across {{ overview.total_days }} days</div>
+        </div>
+        <div class="kpi-icon-box icon-box-green">
+          <i class="bi bi-lightning-charge"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Average Daily Consumption -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card blue-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Avg Daily Load</div>
+          <div class="kpi-value">{{ "{:,.1f}".format(overview.avg_daily_consumption_kwh) }}<span class="kpi-unit">kWh</span></div>
+          <div class="kpi-badge text-muted">~{{ "{:,.1f}".format(overview.avg_daily_consumption_kwh / 24.0) }} kWh/hr</div>
+        </div>
+        <div class="kpi-icon-box icon-box-blue">
+          <i class="bi bi-calendar3"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Highest Consumption Reading -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card rose-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Peak Surge</div>
+          <div class="kpi-value">{{ overview.highest_consumption_kwh }}<span class="kpi-unit">kWh</span></div>
+          <div class="kpi-badge text-danger text-truncate" style="max-width: 140px;" title="{{ overview.highest_consumption_timestamp }}">
+            {{ overview.highest_consumption_timestamp }}
+          </div>
+        </div>
+        <div class="kpi-icon-box icon-box-rose">
+          <i class="bi bi-arrow-up-right-circle"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Predicted Next-Day Consumption (ML) -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card green-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Next 24h Forecast</div>
+          <div class="kpi-value">{{ future_pred.total_predicted_next_day_kwh }}<span class="kpi-unit">kWh</span></div>
+          <div class="kpi-badge text-success">Random Forest ML</div>
+        </div>
+        <div class="kpi-icon-box icon-box-green">
+          <i class="bi bi-cpu"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Estimated Electricity Bill (₹) -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card amber-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Est. Monthly Bill</div>
+          <div class="kpi-value">₹{{ "{:,.0f}".format(bill.flat_monthly_cost) }}</div>
+          <div class="kpi-badge text-muted">@ ₹{{ bill.flat_tariff_rate }}/kWh</div>
+        </div>
+        <div class="kpi-icon-box icon-box-amber">
+          <i class="bi bi-currency-rupee"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Peak Electricity Usage Hour -->
+  <div class="col-12 col-sm-6 col-xl-4 col-xxl-2">
+    <div class="dashboard-card kpi-card navy-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Peak Load Hour</div>
+          <div class="kpi-value fs-4 mt-1">{{ overview.peak_hour_formatted }}</div>
+          <div class="kpi-badge text-danger">Avg: {{ overview.peak_hour_avg_kwh }} kWh</div>
+        </div>
+        <div class="kpi-icon-box icon-box-navy">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Row 1 Charts: Daily Consumption & Monthly Breakdown -->
+<div class="row g-4 mb-4">
+  <!-- Chart 1: Daily Electricity Consumption Line Chart -->
+  <div class="col-12 col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-graph-up text-success"></i> Daily Electricity Consumption Trend</h3>
+          <p class="card-subtitle">Aggregated daily power usage (kWh) across the active historical dataset</p>
+        </div>
+        <span class="badge bg-light text-dark border">Timeline Series</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="dailyChartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 2: Monthly Electricity Consumption Bar Chart -->
+  <div class="col-12 col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-bar-chart-fill text-primary"></i> Monthly Consumption</h3>
+          <p class="card-subtitle">Cumulative energy demand by month</p>
+        </div>
+        <span class="badge bg-light text-dark border">Seasonality</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="monthlyChartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Row 2 Charts: Hourly Diurnal Profile & Distribution Chart -->
+<div class="row g-4 mb-4">
+  <!-- Chart 3: Hourly Usage Profile -->
+  <div class="col-12 col-lg-6">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-clock-fill text-info"></i> Diurnal Hourly Usage Profile</h3>
+          <p class="card-subtitle">24-hour baseline average consumption curve highlighting peak vs trough</p>
+        </div>
+        <span class="badge badge-peak">Peak: {{ overview.peak_hour_formatted }}</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="hourlyChartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 5: Consumption Distribution Chart -->
+  <div class="col-12 col-lg-6">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-pie-chart-fill text-warning"></i> Consumption Distribution</h3>
+          <p class="card-subtitle">Frequency distribution of hourly kWh recordings</p>
+        </div>
+        <span class="badge bg-light text-dark border">Histogram</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="distChartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Row 3: Machine Learning Model - Actual vs Predicted Test Chart -->
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title"><i class="bi bi-cpu text-success"></i> Random Forest Regressor &mdash; Actual vs Predicted</h3>
+          <p class="card-subtitle">Model validation on unseen chronological test split (R²: <strong>{{ model_metrics.r2 }}</strong>, MAE: <strong>{{ model_metrics.mae }} kWh</strong>, RMSE: <strong>{{ model_metrics.rmse }} kWh</strong>)</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('prediction_page') }}" class="btn btn-sm btn-outline-navy">
+            View Full Predictions <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+      <div class="chart-container-lg">
+        <canvas id="actualVsPredCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Smart Recommendations Preview Banner -->
+<div class="dashboard-card bg-white p-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="card-title mb-0">
+      <i class="bi bi-lightbulb-fill text-warning"></i> Top Smart Energy Recommendations
+    </h3>
+    <a href="{{ url_for('recommendations_page') }}" class="btn btn-sm btn-electric">
+      View All Recommendations <i class="bi bi-arrow-right"></i>
+    </a>
+  </div>
+  <div class="row g-3">
+    {% for rec in recommendations.recommendations[:3] %}
+    <div class="col-12 col-md-4">
+      <div class="p-3 rounded-3 border bg-light h-100">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="badge {{ rec.badge_class }}">{{ rec.badge }}</span>
+          <i class="bi {{ rec.icon }} fs-5 text-muted"></i>
+        </div>
+        <h6 class="fw-bold mb-1">{{ rec.title }}</h6>
+        <p class="text-muted small mb-2">{{ rec.description }}</p>
+        <div class="small fw-semibold text-success">
+          <i class="bi bi-check2-circle me-1"></i> {{ rec.potential_impact }}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Chart 1: Daily Line Chart
+  const dailyLabels = {{ daily.daily_chart.labels | tojson }};
+  const dailyValues = {{ daily.daily_chart.data | tojson }};
+  renderDailyLineChart('dailyChartCanvas', dailyLabels, dailyValues);
+
+  // Chart 2: Monthly Bar Chart
+  const monthlyLabels = {{ monthly.labels | tojson }};
+  const monthlyTotals = {{ monthly.totals | tojson }};
+  renderMonthlyBarChart('monthlyChartCanvas', monthlyLabels, monthlyTotals);
+
+  // Chart 3: Hourly Diurnal Chart
+  const hourlyLabels = {{ hourly.labels | tojson }};
+  const hourlyMeans = {{ hourly.means | tojson }};
+  renderHourlyChart('hourlyChartCanvas', hourlyLabels, hourlyMeans);
+
+  // Chart 4: Actual vs Predicted
+  const testTimestamps = {{ test_chart.timestamps | tojson }};
+  const testActual = {{ test_chart.actual | tojson }};
+  const testPredicted = {{ test_chart.predicted | tojson }};
+  renderActualVsPredictedChart('actualVsPredCanvas', testTimestamps, testActual, testPredicted);
+
+  // Chart 5: Distribution Chart
+  const distLabels = {{ dist.labels | tojson }};
+  const distCounts = {{ dist.counts | tojson }};
+  renderDistributionChart('distChartCanvas', distLabels, distCounts);
+});
+</script>
+{% endblock %}

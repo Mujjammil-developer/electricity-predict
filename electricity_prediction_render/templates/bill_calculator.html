@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Electricity Bill Calculator | Electricity Consumption Prediction System{% endblock %}
+{% block page_title %}Electricity Tariff &amp; Bill Estimator (₹){% endblock %}
+{% block page_subtitle %}Interactive tariff simulation, DISCOM slab analysis, and energy conservation cost projections{% endblock %}
+
+{% block content %}
+<!-- Calculator Control Form -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-sliders text-success"></i> Configurable Tariff Parameters
+      </h3>
+      <p class="card-subtitle">Adjust electricity rates in Indian Rupees (₹) to instantly simulate energy expenses</p>
+    </div>
+    <span class="badge bg-light text-dark border">Currency: INR (₹)</span>
+  </div>
+
+  <form method="POST" action="{{ url_for('update_tariff') }}">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <label for="calcTariffRate" class="form-label fw-bold">Electricity Tariff Rate (₹ per kWh):</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light fw-bold">₹</span>
+          <input type="number" step="0.25" min="1.0" max="50.0" class="form-control fw-bold" id="calcTariffRate" name="tariff_rate" value="{{ bill.flat_tariff_rate }}" required>
+          <span class="input-group-text bg-light">/ kWh</span>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <label for="calcDailyKwh" class="form-label fw-bold">Historical Daily Avg (kWh):</label>
+        <input type="number" step="0.1" class="form-control bg-light" id="calcDailyKwh" value="{{ bill.daily_consumption_kwh }}" readonly>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <label for="calcPredKwh" class="form-label fw-bold">ML Next-24h Forecast (kWh):</label>
+        <input type="number" step="0.1" class="form-control bg-light text-success fw-bold" id="calcPredKwh" value="{{ bill.predicted_kwh }}" readonly>
+      </div>
+
+      <div class="col-12 col-md-2">
+        <button type="submit" class="btn btn-navy w-100">
+          <i class="bi bi-check-circle me-1"></i> Save Tariff
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- 4 Cost Estimation Output Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card kpi-card green-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Estimated Daily Cost</div>
+          <div class="kpi-value text-dark" id="resDailyCost">₹{{ "{:,.2f}".format(bill.flat_daily_cost) }}</div>
+          <div class="kpi-badge text-muted">For {{ bill.daily_consumption_kwh }} kWh/day</div>
+        </div>
+        <div class="kpi-icon-box icon-box-green">
+          <i class="bi bi-calendar-day"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card kpi-card blue-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Estimated Monthly Bill</div>
+          <div class="kpi-value text-primary" id="resMonthlyCost">₹{{ "{:,.2f}".format(bill.flat_monthly_cost) }}</div>
+          <div class="kpi-badge text-muted">For {{ "{:,.0f}".format(bill.monthly_consumption_kwh) }} kWh (30 days)</div>
+        </div>
+        <div class="kpi-icon-box icon-box-blue">
+          <i class="bi bi-calendar-month"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card kpi-card amber-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Predicted 24h Expense</div>
+          <div class="kpi-value text-warning" id="resPredCost">₹{{ "{:,.2f}".format(bill.predicted_daily_cost) }}</div>
+          <div class="kpi-badge">
+            {% if bill.cost_difference > 0 %}
+              <span class="text-danger fw-semibold">+₹{{ bill.cost_difference }} (+{{ bill.cost_difference_pct }}%)</span>
+            {% else %}
+              <span class="text-success fw-semibold">{{ bill.cost_difference }} ({{ bill.cost_difference_pct }}%)</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="kpi-icon-box icon-box-amber">
+          <i class="bi bi-lightning-charge"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="dashboard-card kpi-card navy-accent">
+      <div class="kpi-content">
+        <div>
+          <div class="kpi-label">Projected Annual Cost</div>
+          <div class="kpi-value text-dark" id="resAnnualCost">₹{{ "{:,.2f}".format(bill.flat_annual_cost) }}</div>
+          <div class="kpi-badge text-muted">Across 365 operational days</div>
+        </div>
+        <div class="kpi-icon-box icon-box-navy">
+          <i class="bi bi-piggy-bank"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison: Flat Rate vs Tiered Slab Tariffs -->
+<div class="row g-4 mb-4">
+  <!-- Slab Rates Breakdown -->
+  <div class="col-12 col-lg-7">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title">
+            <i class="bi bi-layers-half text-primary"></i> Tiered DISCOM Slab Rate Breakdown
+          </h3>
+          <p class="card-subtitle">Monthly cost calculated using standard Indian State Electricity Board tiered brackets</p>
+        </div>
+        <span class="badge bg-light text-dark border">Monthly: ₹{{ "{:,.2f}".format(bill.slab_monthly_cost) }}</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table custom-table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>Tariff Slab Tier</th>
+              <th>Rate / Unit</th>
+              <th>Units Consumed</th>
+              <th>Subtotal (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in bill.slab_breakdown %}
+            <tr>
+              <td class="fw-semibold">{{ s.slab }}</td>
+              <td>₹{{ s.rate_per_unit }}</td>
+              <td>{{ s.units_consumed }} kWh</td>
+              <td class="fw-bold text-dark">₹{{ "{:,.2f}".format(s.cost_inr) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light fw-bold">
+              <td colspan="3">Total Tiered Bill (excluding duties):</td>
+              <td class="text-primary fs-6">₹{{ "{:,.2f}".format(bill.slab_monthly_cost) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conservation Scenarios -->
+  <div class="col-12 col-lg-5">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title">
+            <i class="bi bi-graph-down-arrow text-success"></i> Energy Efficiency Savings Simulator
+          </h3>
+          <p class="card-subtitle">Projected monthly savings under targeted reduction goals</p>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table custom-table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>Reduction</th>
+              <th>Energy Saved</th>
+              <th>Money Saved (₹)</th>
+              <th>New Bill</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sc in bill.savings_scenarios %}
+            <tr>
+              <td><span class="badge bg-success-subtle text-success fw-bold">{{ sc.reduction_pct }}% Goal</span></td>
+              <td id="saveKwh_{{ sc.reduction_pct }}">{{ sc.saved_kwh_month }} kWh</td>
+              <td class="fw-bold text-success" id="saveInr_{{ sc.reduction_pct }}">₹{{ "{:,.2f}".format(sc.saved_amount_inr) }}</td>
+              <td class="text-muted" id="newBill_{{ sc.reduction_pct }}">₹{{ "{:,.2f}".format(sc.new_bill_inr) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clear Legal & Estimator Disclaimer -->
+<div class="alert alert-warning d-flex align-items-center gap-3 p-3 rounded-3 shadow-sm border-0 bg-warning-subtle text-warning-emphasis">
+  <i class="bi bi-exclamation-circle-fill fs-4 text-warning"></i>
+  <div class="small">
+    <strong>Billing Estimate Disclaimer:</strong> {{ bill.disclaimer }}
+  </div>
+</div>
+{% endblock %}

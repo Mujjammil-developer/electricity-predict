@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Data Analysis | Electricity Consumption Prediction System{% endblock %}
+{% block page_title %}Statistical & Temporal Consumption Analysis{% endblock %}
+{% block page_subtitle %}Comprehensive historical load profiling, peak identification, and diurnal energy patterns{% endblock %}
+
+{% block content %}
+<!-- Top Level Statistical Metrics Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">TOTAL CONSUMPTION</div>
+      <div class="fs-4 fw-bold text-dark mt-1">{{ "{:,.0f}".format(overview.total_consumption_kwh) }} <span class="fs-6 fw-normal text-muted">kWh</span></div>
+      <div class="small text-muted">{{ overview.total_days }} recorded days</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">AVERAGE HOURLY</div>
+      <div class="fs-4 fw-bold text-primary mt-1">{{ overview.avg_hourly_kwh }} <span class="fs-6 fw-normal text-muted">kWh</span></div>
+      <div class="small text-muted">Baseline continuous draw</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">MINIMUM READING</div>
+      <div class="fs-4 fw-bold text-success mt-1">{{ overview.lowest_consumption_kwh }} <span class="fs-6 fw-normal text-muted">kWh</span></div>
+      <div class="small text-muted">Standby vampire load</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">MAXIMUM SURGE</div>
+      <div class="fs-4 fw-bold text-danger mt-1">{{ overview.highest_consumption_kwh }} <span class="fs-6 fw-normal text-muted">kWh</span></div>
+      <div class="small text-danger text-truncate" title="{{ overview.highest_consumption_timestamp }}">{{ overview.highest_consumption_timestamp }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">STANDARD DEVIATION</div>
+      <div class="fs-4 fw-bold text-dark mt-1">&plusmn;{{ overview.std_dev_kwh }} <span class="fs-6 fw-normal text-muted">kWh</span></div>
+      <div class="small text-muted">Load volatility index</div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="dashboard-card p-3">
+      <div class="text-muted small fw-bold">PEAK USAGE HOUR</div>
+      <div class="fs-4 fw-bold text-warning mt-1">{{ overview.peak_hour_formatted }}</div>
+      <div class="small text-muted">Mean: {{ overview.peak_hour_avg_kwh }} kWh</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 1: Hourly Usage Analysis -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-clock-history text-primary"></i> 1. Hourly Consumption &amp; Diurnal Load Profile
+      </h3>
+      <p class="card-subtitle">Aggregated load pattern across 24 hours of the day, classifying Peak, Normal, and Off-Peak zones</p>
+    </div>
+    <span class="badge badge-peak">Highest Peak: {{ overview.peak_hour_formatted }}</span>
+  </div>
+
+  <div class="chart-container mb-4">
+    <canvas id="analysisHourlyChart"></canvas>
+  </div>
+
+  <h5 class="fw-bold fs-6 mb-3"><i class="bi bi-table me-1"></i> 24-Hour Statistical Breakdown Table</h5>
+  <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+    <table class="table custom-table table-sm table-hover">
+      <thead>
+        <tr>
+          <th>Time / Hour</th>
+          <th>Average (kWh)</th>
+          <th>Min (kWh)</th>
+          <th>Max (kWh)</th>
+          <th>Std Dev (kWh)</th>
+          <th>Operating Zone</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hourly.table %}
+        <tr>
+          <td class="fw-bold">{{ h.time_label }} ({{ "%02d:00"|format(h.hour) }})</td>
+          <td><span class="fw-semibold">{{ h.mean_kwh }} kWh</span></td>
+          <td class="text-muted">{{ h.min_kwh }}</td>
+          <td class="text-danger">{{ h.max_kwh }}</td>
+          <td class="text-muted">&plusmn;{{ h.std_kwh }}</td>
+          <td>
+            {% if h.zone == 'Peak Load' %}
+              <span class="badge badge-peak">Peak Load</span>
+            {% elif h.zone == 'Off-Peak' %}
+              <span class="badge badge-offpeak">Off-Peak</span>
+            {% else %}
+              <span class="badge badge-normal">Moderate</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SECTION 2: Daily & Weekly Analysis -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title">
+            <i class="bi bi-calendar-week text-success"></i> 2. Day-of-the-Week Load Distribution
+          </h3>
+          <p class="card-subtitle">Average hourly consumption aggregated across weekdays and weekends</p>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="analysisDowChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="dashboard-card d-flex flex-column justify-content-between">
+      <div>
+        <h3 class="card-title mb-3">
+          <i class="bi bi-briefcase text-info"></i> Weekday vs Weekend Comparison
+        </h3>
+        <p class="text-muted small mb-4">
+          Quantifies behavioral shifts in operational energy demand during non-working days.
+        </p>
+
+        <div class="p-3 bg-light rounded-3 mb-3 border">
+          <div class="text-muted small fw-semibold">WEEKDAY AVERAGE (MON - FRI)</div>
+          <div class="fs-3 fw-bold text-dark mt-1">{{ daily.weekday_avg }} <span class="fs-6 fw-normal text-muted">kWh/hr</span></div>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 mb-3 border">
+          <div class="text-muted small fw-semibold">WEEKEND AVERAGE (SAT - SUN)</div>
+          <div class="fs-3 fw-bold text-success mt-1">{{ daily.weekend_avg }} <span class="fs-6 fw-normal text-muted">kWh/hr</span></div>
+        </div>
+
+        <div class="alert alert-light border small text-muted mb-0">
+          <i class="bi bi-info-circle-fill text-primary me-1"></i>
+          Weekend load shifts by <strong>{{ daily.weekend_variation_pct }}%</strong> compared to standard weekday baselines.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: Monthly Usage Analysis -->
+<div class="dashboard-card mb-4">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-bar-chart-steps text-primary"></i> 3. Monthly Energy Consumption &amp; Seasonality
+      </h3>
+      <p class="card-subtitle">Monthly total consumption and seasonal demand dynamics</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-7">
+      <div class="chart-container">
+        <canvas id="analysisMonthlyChart"></canvas>
+      </div>
+    </div>
+    <div class="col-12 col-lg-5">
+      <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+        <table class="table custom-table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Total (kWh)</th>
+              <th>Hourly Avg</th>
+              <th>Max Surge</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in monthly.table %}
+            <tr>
+              <td class="fw-bold">{{ m.month_label }}</td>
+              <td class="text-primary fw-semibold">{{ "{:,.0f}".format(m.total_kwh) }}</td>
+              <td>{{ m.mean_kwh }} kWh</td>
+              <td class="text-danger">{{ m.max_kwh }} kWh</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 4: Peak-Hour Identification & Top Peaks -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-7">
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div>
+          <h3 class="card-title">
+            <i class="bi bi-lightning-charge-fill text-warning"></i> 4. Top 10 Peak Consumption Events
+          </h3>
+          <p class="card-subtitle">Highest recorded consumption spikes in the dataset</p>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table custom-table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Timestamp</th>
+              <th>Day &amp; Time</th>
+              <th>Peak Load</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in peak.top_peak_records %}
+            <tr>
+              <td><span class="badge bg-danger-subtle text-danger fw-bold">#{{ loop.index }}</span></td>
+              <td class="fw-semibold">{{ p.datetime }}</td>
+              <td>{{ p.day }}, {{ p.hour }}</td>
+              <td><span class="badge badge-peak">{{ p.consumption_kwh }} kWh</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <div class="dashboard-card">
+      <h3 class="card-title mb-3">
+        <i class="bi bi-pie-chart text-danger"></i> Peak Window Load Share
+      </h3>
+      <p class="text-muted small">
+        Standard peak operating windows (Morning: 7-10 AM, Evening: 6-10 PM) vs Off-peak baselines.
+      </p>
+
+      <div class="p-3 bg-light rounded-3 mb-3 border">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small fw-bold">Peak Period Energy Share</span>
+          <span class="small fw-bold text-danger">{{ peak.peak_window_percentage }}%</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+          <div class="progress-bar bg-danger" role="progressbar" style="width: {{ peak.peak_window_percentage }}%;"></div>
+        </div>
+        <div class="small text-muted mt-2">
+          Total energy consumed during peak hours: <strong>{{ "{:,.0f}".format(peak.peak_window_total_kwh) }} kWh</strong>
+        </div>
+      </div>
+
+      <div class="p-3 bg-light rounded-3 border">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small fw-bold">Off-Peak &amp; Normal Energy Share</span>
+          <span class="small fw-bold text-success">{{ peak.off_peak_window_percentage }}%</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+          <div class="progress-bar bg-success" role="progressbar" style="width: {{ peak.off_peak_window_percentage }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 5: Distribution Analysis & Quartiles -->
+<div class="dashboard-card">
+  <div class="card-header-flex">
+    <div>
+      <h3 class="card-title">
+        <i class="bi bi-sliders text-primary"></i> 5. Consumption Frequency Distribution &amp; Percentiles
+      </h3>
+      <p class="card-subtitle">Statistical spread of power consumption and quartile markers</p>
+    </div>
+  </div>
+
+  <div class="row g-4 align-items-center">
+    <div class="col-12 col-lg-8">
+      <div class="chart-container">
+        <canvas id="analysisDistChart"></canvas>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="p-3 bg-light rounded-3 border">
+        <h6 class="fw-bold mb-3">Percentile Distribution (kWh)</h6>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-muted">25th Percentile (Q1):</span>
+          <strong>{{ dist.quartiles.q1_p25 }} kWh</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-muted">Median (50th Percentile):</span>
+          <strong class="text-primary">{{ dist.quartiles.median_p50 }} kWh</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-muted">75th Percentile (Q3):</span>
+          <strong>{{ dist.quartiles.q3_p75 }} kWh</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom small">
+          <span class="text-muted">90th Percentile:</span>
+          <strong>{{ dist.quartiles.p90 }} kWh</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-muted">95th Percentile (Spike threshold):</span>
+          <strong class="text-danger">{{ dist.quartiles.p95 }} kWh</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Hourly Profile Chart
+  const hourlyLabels = {{ hourly.labels | tojson }};
+  const hourlyMeans = {{ hourly.means | tojson }};
+  renderHourlyChart('analysisHourlyChart', hourlyLabels, hourlyMeans);
+
+  // Day of Week Chart
+  const dowLabels = {{ daily.dow_chart.labels | tojson }};
+  const dowValues = {{ daily.dow_chart.data | tojson }};
+  const dowCtx = document.getElementById('analysisDowChart');
+  if (dowCtx) {
+    new Chart(dowCtx, {
+      type: 'bar',
+      data: {
+        labels: dowLabels,
+        datasets: [{
+          label: 'Average Hourly Consumption (kWh)',
+          data: dowValues,
+          backgroundColor: '#0284c7',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: '#e2e8f0' }, title: { display: true, text: 'Average Load (kWh)' } }
+        }
+      }
+    });
+  }
+
+  // Monthly Chart
+  const monthlyLabels = {{ monthly.labels | tojson }};
+  const monthlyTotals = {{ monthly.totals | tojson }};
+  renderMonthlyBarChart('analysisMonthlyChart', monthlyLabels, monthlyTotals);
+
+  // Distribution Chart
+  const distLabels = {{ dist.labels | tojson }};
+  const distCounts = {{ dist.counts | tojson }};
+  renderDistributionChart('analysisDistChart', distLabels, distCounts);
+});
+</script>
+{% endblock %}
